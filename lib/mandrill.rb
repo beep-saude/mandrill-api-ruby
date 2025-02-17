@@ -4,6 +4,7 @@ require 'json'
 
 require 'mandrill/errors'
 require 'mandrill/api'
+require 'mandrill/templates_deployer'
 
 module Mandrill
     class API
