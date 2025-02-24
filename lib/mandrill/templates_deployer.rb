@@ -24,12 +24,13 @@ module Mandrill
   end
 
   class TemplatesDeployer
-    def initialize(api_key:, templates_path:, templates_suffix: '', logger: DefaultConsoleLogger.new)
+    def initialize(api_key:, templates_path:, templates_suffix: '', labels: [], logger: DefaultConsoleLogger.new)
       @client = ::Mandrill::API.new(api_key)
       @logger = logger
       @templates_client = @client.templates
       @templates_suffix = templates_suffix
       @templates_path = templates_path
+      @labels = labels
       @deployments = {}
       build_deployments_mapping!
     end
@@ -59,7 +60,7 @@ module Mandrill
           from_name: 'Beep Saúde',
           subject: '',
           publish: true,
-          labels: []
+          labels: @labels
         }
       }
     end
