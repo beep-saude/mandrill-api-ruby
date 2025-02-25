@@ -24,6 +24,9 @@ module Mandrill
   end
 
   class TemplatesDeployer
+    
+    attr_reader :existing_templates_cache, :deployments
+
     def initialize(api_key:, templates_path:, default_sender:, templates_suffix: '', labels: [], logger: DefaultConsoleLogger.new)
       @client = ::Mandrill::API.new(api_key)
       @logger = logger
@@ -33,7 +36,7 @@ module Mandrill
       @default_sender = default_sender
       @labels = labels
       @deployments = {}
-      @existing_templates_cache = {}
+      @existing_templates_cache = load_existing_templates_cache!
       build_deployments_mapping!
     end
 
@@ -55,18 +58,16 @@ module Mandrill
 
       template_files.map { |filepath|
         template_name = "#{File.basename(filepath, '.html')}#{@templates_suffix}".downcase
-        remote_info = get_info(template_name: template_name) || {}
-
-        @existing_templates_cache[template_name] = true if remote_info.key?('slug')
+        existing_info = @existing_templates_cache[template_name] || {}
 
         @deployments[template_name] = {
           name: template_name,
           filepath: filepath,
-          from_email: remote_info['from_email'] || @default_sender,
-          from_name: remote_info['from_name'] || 'Beep Saúde',
-          subject: remote_info['subject'] || template_name,
+          from_email: existing_info['from_email'] || @default_sender,
+          from_name: existing_info['from_name'] || 'Beep Saúde',
+          subject: existing_info['subject'] || template_name,
           publish: true,
-          labels: remote_info.key?('labels') ? remote_info['labels'].concat(@labels) : @labels
+          labels: existing_info.key?('labels') ? existing_info['labels'].concat(@labels) : @labels
         }
       }
     end
@@ -76,6 +77,17 @@ module Mandrill
         @templates_client.info(template_name)
       rescue Mandrill::UnknownTemplateError
         nil
+      end
+    end
+
+    def load_existing_templates_cache!
+      templates_list = @templates_client.list
+      {}.tap do |templates_map|
+        templates_list.each do |template|
+          template.delete('code')
+          template.delete('publish_code')
+          templates_map[template['slug']] = template
+        end
       end
     end
 
