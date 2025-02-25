@@ -70,9 +70,9 @@ module Mandrill
         @deployments[template_name] = {
           name: template_name,
           filepath: filepath,
-          from_email: existing_info['from_email'] || mapped_info['from_email'] || @default_sender,
-          from_name: existing_info['from_name'] || mapped_info['from_name'] || 'Beep Saúde',
-          subject: existing_info['subject'] || mapped_info['subject'] || template_name,
+          from_email: mapped_info['from_email'] || existing_info['from_email'] || @default_sender,
+          from_name: mapped_info['from_name'] || existing_info['from_name'] || 'Beep Saúde',
+          subject: mapped_info['subject'] || existing_info['subject'] || template_name,
           publish: true,
           labels: existing_info.key?('labels') ? existing_info['labels'].concat(to_add_labels) : to_add_labels
         }
