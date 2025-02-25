@@ -24,14 +24,16 @@ module Mandrill
   end
 
   class TemplatesDeployer
-    def initialize(api_key:, templates_path:, templates_suffix: '', labels: [], logger: DefaultConsoleLogger.new)
+    def initialize(api_key:, templates_path:, default_sender:, templates_suffix: '', labels: [], logger: DefaultConsoleLogger.new)
       @client = ::Mandrill::API.new(api_key)
       @logger = logger
       @templates_client = @client.templates
       @templates_suffix = templates_suffix
       @templates_path = templates_path
+      @default_sender = default_sender
       @labels = labels
       @deployments = {}
+      @existing_templates_cache = {}
       build_deployments_mapping!
     end
 
@@ -40,7 +42,7 @@ module Mandrill
         # reading file content each iteration to save memory
         file_content = File.read(deploy_data[:filepath])
         deploy_data[:code] = file_content
-        self.create_or_update(template_name: template_name, data: deploy_data)
+        create_or_update(template_name: template_name, data: deploy_data)
       end
     end
 
@@ -53,35 +55,38 @@ module Mandrill
 
       template_files.map { |filepath|
         template_name = "#{File.basename(filepath, '.html')}#{@templates_suffix}".downcase
+        remote_info = get_info(template_name: template_name) || {}
+
+        @existing_templates_cache[template_name] = true if remote_info.key?('slug')
+
         @deployments[template_name] = {
           name: template_name,
           filepath: filepath,
-          from_email: '',
-          from_name: 'Beep Saúde',
-          subject: '',
+          from_email: remote_info['from_email'] || @default_sender,
+          from_name: remote_info['from_name'] || 'Beep Saúde',
+          subject: remote_info['subject'] || template_name,
           publish: true,
-          labels: @labels
+          labels: remote_info.key?('labels') ? remote_info['labels'].concat(@labels) : @labels
         }
       }
     end
 
     def get_info(template_name:)
-      @templates_client.info(template_name)
-    end
-
-    def template_exists?(template_name)
       begin
-        self.get_info(template_name: template_name)
-        true
+        @templates_client.info(template_name)
       rescue Mandrill::UnknownTemplateError
-        false
+        nil
       end
     end
 
-    def create_or_update(template_name:, data:)
-      return self.update(new_data: data) if self.template_exists?(template_name)
+    def template_exists?(template_name)
+      @existing_templates_cache.key?(template_name)
+    end
 
-      self.create(data: data)
+    def create_or_update(template_name:, data:)
+      return update(new_data: data) if template_exists?(template_name)
+
+      create(data: data)
     end
 
     private
