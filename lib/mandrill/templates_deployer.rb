@@ -29,7 +29,8 @@ module Mandrill
 
     MAPPINGS_FILENAME = '_mappings.yml'.freeze
 
-    def initialize(api_key:, templates_path:, default_sender:, templates_suffix: '', labels: [], logger: DefaultConsoleLogger.new)
+    def initialize(api_key:, templates_path:, default_sender: 'contato@beepsaude.com.br', templates_suffix: '', labels: [], logger: DefaultConsoleLogger.new)
+      validate!(api_key, templates_path, default_sender)
       @client = ::Mandrill::API.new(api_key)
       @logger = logger
       @templates_client = @client.templates
@@ -132,6 +133,14 @@ module Mandrill
     end
 
     private
+
+    def validate!(api_key, templates_path, default_sender)
+      raise 'Mandrill API KEY is required for templates deployment' if api_key.empty?
+      raise 'Mandrill templates path is required for templates deployment' unless templates_path.empty?
+      raise 'Mandrill default sender address is required for templates deployment' unless default_sender.empty?
+
+      nil
+    end
 
     def create(data: {})
       begin

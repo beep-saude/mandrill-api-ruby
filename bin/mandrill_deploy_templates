@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+require_relative '../lib/mandrill'
+
+def exit_error
+  puts 'Exiting Status: 1'
+  exit(1)
+end
+
+LOAD_FROM_ENV_COMMAND = '--load-options-from-env'.freeze
+
+args = ARGV
+commands = {
+  '--run' => Proc.new { |options|
+    command_params = {
+      '--api_key' => '',
+      '--templates_file_path' => '',
+      '--templates_suffix' => '',
+      '--templates_labels' => [],
+      LOAD_FROM_ENV_COMMAND => false
+    }
+
+    options.each do |option|
+      param_split = option.split('=')
+      param_name = param_split.first&.to_s
+      param_value = param_split.last&.to_s
+      param_value = true if param_name == LOAD_FROM_ENV_COMMAND
+      param_value = param_value.split(',') if param_name == '--templates_labels'
+
+      command_params[param_name] = param_value if command_params.key?(param_name)
+    end
+
+    env_api_key = command_params['--api_key']
+    env_templates_files_path = command_params['--templates_file_path']
+    env_templates_suffix = command_params['--templates_suffix']
+    env_template_labels = command_params['--templates_labels']
+
+    if command_params[LOAD_FROM_ENV_COMMAND]
+      env_api_key = ENV['MANDRILL_API_KEY']
+      env_templates_files_path = ENV['MANDRILL_TEMPLATES_FILE_PATH']
+      env_templates_suffix = ENV['MANDRILL_TEMPLATES_SUFFIX']
+      env_template_labels = ENV['MANDRILL_TEMPLATES_LABELS']&.to_s&.split(',') || []
+
+      raise 'MANDRILL_API_KEY enviroment variable is required for templates deployment' if env_api_key.nil? || (!env_api_key.nil? && env_api_key.empty?)
+      raise 'MANDRILL_TEMPLATES_FILE_PATH environment variable is required for templates deployment' if env_templates_files_path.nil? || (!env_templates_files_path.nil? && env_templates_files_path.empty?)
+    end
+
+    Mandrill::TemplatesDeployer.new(
+      api_key: env_api_key,
+      templates_path: env_templates_files_path,
+      templates_suffix: env_templates_suffix,
+      labels: env_template_labels
+    ).deploy!
+  },
+  '--help' => Proc.new {
+    puts '-------------------------------------------------------------------------------------------------------------------------------------------------------------'
+    puts '                                            Mandrill Templates Deployment                                                      '
+    puts '-------------------------------------------------------------------------------------------------------------------------------------------------------------'
+    puts '* Using load configs from environment option: (MANDRILL_API_KEY, MANDRILL_TEMPLATES_FILE_PATH, MANDRILL_TEMPLATES_SUFFIX, MANDRILL_TEMPLATES_LABELS)'
+    puts "Example usage: mandrill_deploy_templates --run #{LOAD_FROM_ENV_COMMAND}"
+    puts ''
+    puts '* Passing configs individually in a single command'
+    puts 'Example usage: mandrill_deploy_templates --run --api_key=test --templates_file_path=/path/to/templates --templates_suffix=-staging --templates_labels=staging,other-label,newlabel'
+    puts ''
+    puts '-------------------------------------------------------------------------------------------------------------------------------------------------------------'
+  }
+}
+
+begin
+  command_name = args[0]
+  available_commands = commands.keys
+
+  if args.count.zero? || (args.count.positive? && !commands.key?(command_name))
+    raise "command #{command_name} not found. Commands available: #{available_commands.join(', ')}"
+  end
+
+  command = commands[command_name]
+  command.call(args[1..args.count-1])
+rescue RuntimeError => e
+  puts "✕ ERROR: #{e.message}"
+  exit_error
+end
