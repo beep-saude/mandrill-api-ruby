@@ -1,5 +1,6 @@
 # frozen_string_literal: false
 require 'rubygems'
+require 'yaml'
 
 module Mandrill
   class DefaultConsoleLogger
