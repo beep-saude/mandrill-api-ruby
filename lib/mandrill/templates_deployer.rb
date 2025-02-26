@@ -136,8 +136,8 @@ module Mandrill
 
     def validate!(api_key, templates_path, default_sender)
       raise 'Mandrill API KEY is required for templates deployment' if api_key.empty?
-      raise 'Mandrill templates path is required for templates deployment' unless templates_path.empty?
-      raise 'Mandrill default sender address is required for templates deployment' unless default_sender.empty?
+      raise 'Mandrill templates path is required for templates deployment' if templates_path.empty?
+      raise 'Mandrill default sender address is required for templates deployment' if default_sender.empty?
 
       nil
     end
